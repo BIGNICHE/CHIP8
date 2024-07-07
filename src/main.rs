@@ -1,4 +1,4 @@
-use std::{fs, io, env, path};
+use std::{env, fs, io, panic::PanicInfo, path};
 static MEM_SIZE:usize = 0x1000; // Size of CHIP-8 Memory.
 static PROG_START:i32 = 0x200;
 static MAX_PROGRAM_SIZE:usize = 0xE00;
@@ -24,6 +24,9 @@ impl<T> Stack<T> {
   }
 
    */
+
+
+
 struct Display {
     pixels: [[bool; DISPLAY_WIDTH]; DISPLAY_HEIGHT ],
 }
@@ -38,6 +41,44 @@ impl Display {
 
 
 }
+
+struct Chip8 {
+    display: Display,
+    memory: Vec<u8>,
+    stack: Vec<u16>,
+    I: u16,
+    pc: u16,
+    V0: u8,
+    V1: u8,
+    V2: u8,
+    V3: u8,
+    V4: u8,
+    V5: u8,
+    V6: u8,
+    V7: u8,
+    V8: u8,
+    V9: u8,
+    VA: u8,
+    VB: u8,
+    VC: u8,
+    VD: u8,
+    VE: u8,
+    VF: u8,
+}
+
+impl Chip8 {
+    fn new() -> Self {
+        Chip8 { display: Display{pixels: [[false; DISPLAY_WIDTH]; DISPLAY_HEIGHT]}, 
+                memory: vec![0; MEM_SIZE], 
+                stack: {}, I: 0, pc: 0, 
+                V0: 0, V1: 0, V2: 0, 
+                V3: 0, V4: 0, V5: 0, 
+                V6: 0, V7: 0, V8: 0, 
+                V9: 0, VA: 0, VB: 0,
+                VC: 0, VD: 0, VE: 0, VF: 0 }
+    }
+}
+
 
 
 fn emplace_at(data: u8, emplace_idx: usize , memory: &mut Vec<u8>)
@@ -115,6 +156,11 @@ fn hex_dump(memory: Vec<u8>) {
 
 }
 
+fn decode_instruction(instructions: &[u8], memory: &mut Vec<u8>, program_counter: &mut u16) {
+
+}
+
+
 
 
 fn main() {
@@ -147,7 +193,15 @@ fn main() {
     load_program(rom_path, &mut memory);
 
     
+    while true {
+        // fetch
+        // each chip 8 instruction is 2 bytes
 
+
+
+        
+
+    }
 
 
 
