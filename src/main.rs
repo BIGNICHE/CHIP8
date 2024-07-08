@@ -50,19 +50,20 @@ impl Instruction {
 
 
 struct Display {
-    pixels: [[u8; DISPLAY_WIDTH]; DISPLAY_HEIGHT ],
+    pixels: [[u8; DISPLAY_HEIGHT];  DISPLAY_WIDTH],
 }
 
 impl Display {
     fn print(&mut self) {
         // draws to console
-        for j in 0..DISPLAY_WIDTH {
-            for i in 0..DISPLAY_HEIGHT {
+        for j in 0..DISPLAY_HEIGHT{
+            for i in 0..DISPLAY_WIDTH {
                 //self.pixels[i][j] = false;
                 if (self.pixels[i][j] > 0) {
-                    print!("\u{2518}");
+                    //print!("\u{2518}");
+                    print!("\u{2B1C}");
                 } else {
-                    print!(" ");
+                    print!("\u{2B1B}");
                 }
             }
             print!("\n")
@@ -90,7 +91,7 @@ impl Display {
         }
 
         // Returns 1 if a pixel was erased, 0 if no pixels were erased.
-        return (x & y < 0);
+        return ((x & y) > 0);
 
     }
 
@@ -136,8 +137,8 @@ impl CPU {
         CPU {
             stack: Vec::new(),
             I: 0,
-            pc: 0,
-            VX: vec![0; 15]
+            pc: PROG_START as u16,
+            VX: vec![0; 16]
         }
     }
 }
@@ -151,7 +152,7 @@ struct Chip8 {
 
 impl Chip8 {
     fn new() -> Self {
-        Chip8 { display: Display{pixels: [[0; DISPLAY_WIDTH]; DISPLAY_HEIGHT]}, 
+        Chip8 { display: Display{pixels: [[0; DISPLAY_HEIGHT]; DISPLAY_WIDTH]}, 
                 memory: vec![0; MEM_SIZE],
                 cpu: CPU::new()}
     }
@@ -205,7 +206,7 @@ impl Chip8 {
 
         let mut inst: u16;
 
-        inst = (self.memory[self.cpu.pc as usize] << 0xFF) as u16;
+        inst = (self.memory[self.cpu.pc as usize] as u16) << 8;
         self.cpu.pc += 1;
         inst += self.memory[self.cpu.pc as usize] as u16;
         self.cpu.pc += 1;
@@ -254,8 +255,8 @@ impl Chip8 {
         self.cpu.VX[0xF] = 0;
 
         // Modulo operation wraps screen operations.
-        let startX = self.cpu.VX[x as usize];
-        let startY = self.cpu.VX[y as usize];
+        let start_x = self.cpu.VX[x as usize];
+        let start_y = self.cpu.VX[y as usize];
 
         let mut sprite: Vec<u8> = Vec::new();
 
@@ -266,7 +267,15 @@ impl Chip8 {
         }
 
         // Set VF
-        self.cpu.VX[0xF] = self.display.draw_sprite(startX, startY, sprite);
+        self.cpu.VX[0xF] = self.display.draw_sprite(start_x, start_y, sprite);
+
+        self.display.print();
+
+        println!("");
+        println!("");
+        println!("");
+        println!("");
+        println!("");
     
 
     }
@@ -276,9 +285,7 @@ impl Chip8 {
 
         // Create nibbles from 16 bit instruction
 
-        
-
-
+       
         match instruction.get_nibble(0){
             0x0=>self.clear_screen(),
             0x1=>self.jump(instruction.instruction & 0xFFF),
@@ -295,7 +302,13 @@ impl Chip8 {
     }
 
 
-    fn run() {}
+    fn run(&mut self) {
+
+        while true {
+        let inst = self.get_instruction();
+        self.run_instruction(inst);
+    }
+    }
     
 
 
@@ -352,14 +365,21 @@ fn main() {
     //let mut display: Display = Display{pixels: [[false; DISPLAY_WIDTH]; DISPLAY_HEIGHT]};
 
     //let mut rom_path = exec_path.clone();
-    let mut rom_path = path::PathBuf::from(r"C:\Users\Nick\Documents\GitHub\RustCHIP8");
+    let mut rom_path = path::PathBuf::from(r"C:\Users\Vishu\Documents\GitHub\CHIP8");
     rom_path.push("roms");
-    rom_path.push(r"IBM Logo.ch8");
+    rom_path.push(r"ibm.ch8");
 
    
     chip8.load_program(rom_path);
 
+    chip8.run();
 
+    //chip8.display.pixels[0][0] = 1;
+
+    //chip8.display.print();
+
+
+    
 
 
 
@@ -370,6 +390,6 @@ fn main() {
 
 
 
-    hex_dump(chip8.memory);
+    //hex_dump(chip8.memory);
 
 }
