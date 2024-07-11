@@ -5,6 +5,16 @@ static MAX_PROGRAM_SIZE:usize = 0xE00;
 static FONT_MEMORY_START: i32 = 0x50;
 const DISPLAY_WIDTH:usize = 64;
 const DISPLAY_HEIGHT:usize = 32;
+use error_iter::ErrorIter as _;
+use log::{debug, error};
+use pixels::{Error, Pixels, SurfaceTexture};
+use winit::{
+    dpi::LogicalSize,
+    event::{Event, VirtualKeyCode},
+    event_loop::{ControlFlow, EventLoop},
+    window::WindowBuilder,
+};
+use winit_input_helper::WinitInputHelper;
 
 
 /*
@@ -358,6 +368,28 @@ fn hex_dump(buf: Vec<u8>) {
 
 fn main() {
 
+    env_logger::init();
+    let event_loop = EventLoop::new();
+    let mut input = WinitInputHelper::new();
+
+    let window = {
+        let size = LogicalSize::new(DISPLAY_WIDTH as f64, DISPLAY_HEIGHT as f64);
+        let scaled_size = LogicalSize::new(DISPLAY_WIDTH as f64 * 3.0, DISPLAY_HEIGHT as f64 * 3.0);
+        WindowBuilder::new()
+            .with_title("CHIP-8")
+            .with_inner_size(scaled_size)
+            .with_min_inner_size(size)
+            .build(&event_loop)
+            .unwrap()
+    };
+
+    let mut pixels = {
+        let window_size = window.inner_size();
+        let surface_texture = SurfaceTexture::new(window_size.width, window_size.height, &window);
+        Pixels::new(DISPLAY_WIDTH.try_into().unwrap(), DISPLAY_HEIGHT.try_into().unwrap(), surface_texture)
+    };
+
+
     let mut chip8 = Chip8::new();
 
 
@@ -370,6 +402,12 @@ fn main() {
     rom_path.push(r"ibm.ch8");
 
    
+    event_loop.run(move | event, _, control_flow| {
+        
+    });
+
+
+
     chip8.load_program(rom_path);
 
     chip8.run();
