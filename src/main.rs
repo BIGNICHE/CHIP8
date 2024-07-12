@@ -303,9 +303,6 @@ impl Chip8 {
     // Not implemented on modern interpreters
     fn SYS(&mut self, address: u16){}
 
-
-
-
     fn decode_zero_instruction(&mut self, instruction: &u16) {
 
         match instruction {
@@ -324,9 +321,101 @@ impl Chip8 {
     }
 
     // Increments the program counter by 2 if Vn = val
-    fn skip(&mut self, register_idx: u8, val: u8) {
+    fn skip_equal(&mut self, instruction: &u16) {
+
+        let register_idx = get_nibble(instruction, &1);
+        let val = (instruction & 0xFF) as u8;
+
         if self.cpu.VX[register_idx as usize] == val {
             self.cpu.pc += 2
+        }
+    }
+
+    fn skip_not_equal(&mut self, instruction: &u16) {
+
+        let register_idx = get_nibble(instruction, &1);
+        let val = (instruction & 0xFF) as u8;
+
+        if self.cpu.VX[register_idx as usize] != val {
+            self.cpu.pc += 2
+        }
+
+    }
+
+
+    // 5xy0
+    // Skip next instruction if Vx = Vy.
+    fn skip_registers_equal(&mut self, instruction: &u16) {
+
+        let r1 = get_nibble(instruction, &1);
+        let r2 = get_nibble(instruction, &2);
+
+        if self.cpu.VX[r1 as usize] == self.cpu.VX[r2 as usize] {
+            self.cpu.pc += 2
+        }
+
+    }
+
+    // 8xy0
+    // Set Vx = Vy.
+    //Stores the value of register Vy in register Vx.
+    fn ld_y(&mut self, vx_index: usize, vy_index: usize) {
+
+        self.cpu.VX[vx_index] = self.cpu.VX[vy_index]; 
+
+    }
+
+    fn register_operation(&mut self, f: fn(u8, u8) -> u8, vx_index: usize, vy_index: usize) {
+
+        self.cpu.VX[vx_index] = f(self.cpu.VX[vx_index], self.cpu.VX[vy_index]);
+
+    }
+
+
+
+    // 8xy1
+    // Stores the bitwise OR of vx and vy in vx.
+    fn or_x_y(&mut self, vx_index: usize, vy_index: usize) {
+
+        //self.cpu.VX[vx_index] = self.cpu.VX[vx_index] | self.cpu.VX[vy_index]; 
+        
+        self.register_operation(std::ops::BitOr, vx_index, vy_index)
+
+    }
+    /*
+
+    // 8xy2
+    // Stores the bitwise AND of vx and vy in vx.
+    fn and_x_y(&mut self, vx_index: usize, vy_index: usize) {
+
+        self.cpu.VX[vx_index] = self.cpu.VX[vx_index] & self.cpu.VX[vy_index]; 
+
+    }
+
+    // 8xy3
+    // Stores the bitwise OR of vx and vy in vx.
+    fn and_x_y(&mut self, vx_index: usize, vy_index: usize) {
+
+        self.cpu.VX[vx_index] = self.cpu.VX[vx_index] & self.cpu.VX[vy_index]; 
+
+    }
+
+     */
+
+    fn decode_8_instruction(&mut self, instruction: &u16) {
+
+        // Instructions beginning with 8 perform operations on the registers.
+        // They are differentiated by the lowest significant nibble (index 3)
+        let vx_index = get_nibble(instruction, &1) as usize;
+        let vy_index = get_nibble(instruction, &2) as usize;
+
+        match get_nibble(instruction, &3) {
+            0x0 => self.ld_y(vx_index, vy_index),
+            0x1 => self.or_x_y(vx_index, vy_index),
+            0x2 => self.and_x_y(vx_index, vy_index),
+            0x3 => self.xor_x_y(vx_index, vy_index),
+
+            _ => println!("Instruction not recognized!")
         }
     }
 
@@ -337,7 +426,9 @@ impl Chip8 {
             0x0 => self.decode_zero_instruction(instruction),
             0x1 => self.jump(instruction & 0xFFF),
             0x2 => self.call(instruction & 0xFFF),
-            0x3 => self.skip(get_nibble(instruction, &1), (instruction & 0xFF) as u8),
+            0x3 => self.skip_equal(instruction),
+            0x4 => self.skip_not_equal(instruction),
+            0x5 => self.skip_registers_equal(instruction),
             0x6 => self.set_vx(
                 get_nibble(instruction, &1),
                 (instruction & 0xFF).try_into().unwrap(),
@@ -346,6 +437,7 @@ impl Chip8 {
                 get_nibble(instruction, &1),
                 (instruction & 0xFF).try_into().unwrap(),
             ),
+            0x8 => self.decode_8_instruction(instruction),
             0xA => self.set_index_register(instruction & 0xFFF),
             0xD => self.draw(
                 get_nibble(instruction, &1),
@@ -360,7 +452,7 @@ impl Chip8 {
         self.cpu.delay_timer.update();
         self.cpu.sound_timer.update();
         let inst = self.get_instruction();
-        self.run_instruction(inst);
+        self.run_instruction(&inst);
     }
 }
 
