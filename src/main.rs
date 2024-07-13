@@ -21,6 +21,33 @@ struct Display {
     pixels: [[u8; DISPLAY_HEIGHT]; DISPLAY_WIDTH],
 }
 
+struct RegisterOperator<'a> {
+    cpu: &'a mut CPU,
+}
+
+impl RegisterOperator {
+
+    fn new(cpu: &mut CPU) -> Self {
+        return RegisterOperator {cpu:cpu};
+    }
+
+    fn operate(&mut self, x_index: u8, y_index: u8) {
+        let val: u8 = self.run(self.cpu.VX[x_index as usize], self.cpu.VX[y_index as usize]);
+        self.cpu.VX[x_index as usize] = val;
+    }
+
+}
+
+trait operation {
+    fn run(&self, x_val: u8, y_val: u8) -> u8;
+}
+
+impl operation for RegisterOperator<'_> {
+    fn run(&self, x_val: u8, y_val: u8) -> u8 { 
+        return 
+    }
+}
+
 struct Timer {
     val: u8,
     next_tick: Instant
