@@ -1,4 +1,4 @@
-use std::{env, fs, io, panic::PanicInfo, path, time::Duration, time::Instant};
+use std::{env, fs, io, ops::BitOr, panic::PanicInfo, path, time::{Duration, Instant}};
 static MEM_SIZE: usize = 0x1000; // Size of CHIP-8 Memory.
 static PROG_START: i32 = 0x200;
 static MAX_PROGRAM_SIZE: usize = 0xE00;
@@ -22,31 +22,77 @@ struct Display {
 }
 
 struct RegisterOperator<'a> {
-    cpu: &'a mut CPU,
-}
+    vx: &'a mut u8,
+    vy: &'a mut u8,
+    vf: &'a mut u8,
+}   
 
-impl RegisterOperator {
-
-    fn new(cpu: &mut CPU) -> Self {
-        return RegisterOperator {cpu:cpu};
+impl RegisterOperator<'_> {
+    fn bit_or(&mut self) {
+        (*self.vx) | (*self.vy);
+    }
+    fn bit_and(&mut self) {
+        (*self.vx) & (*self.vy);
+    }
+    fn bit_xor(&mut self) {
+        (*self.vx) ^ (*self.vy);
+    }
+    fn add(&mut self) {
+        // VF is carry.
+        // If the result is greater than 8 bits, VF is set to 1.
+        // only the lowest 8 bits are kept.
+        let tmp: u16 = ((*self.vx) + (*self.vy)) as u16;
+        if tmp > 0xFF {
+            *self.vf = 1;
+        } else {
+            *self.vf = 0;
+        }
+        (*self.vx) = (tmp & 0xFF) as u8;
     }
 
-    fn operate(&mut self, x_index: u8, y_index: u8) {
-        let val: u8 = self.run(self.cpu.VX[x_index as usize], self.cpu.VX[y_index as usize]);
-        self.cpu.VX[x_index as usize] = val;
+    fn sub(&mut self) {
+        if self.vx > self.vy {
+            *self.vf = 1;
+        } else {
+            *self.vf = 0;
+        }
+
+        // Unsigned sub, so result wraps.
+        *self.vx = *self.vx - *self.vy;
+        
     }
 
-}
+    fn subn(&mut self) {
+        if self.vx > self.vy {
+            *self.vf = 0;
+        } else {
+            *self.vf = 1;
+        }
+        // Unsigned sub, so result wraps.
+        *self.vx = *self.vx - *self.vy;
 
-trait operation {
-    fn run(&self, x_val: u8, y_val: u8) -> u8;
-}
-
-impl operation for RegisterOperator<'_> {
-    fn run(&self, x_val: u8, y_val: u8) -> u8 { 
-        return 
     }
+
+    // shift right
+    fn shr(&mut self) {
+
+        *self.vf = *self.vx & 1;
+
+        *self.vx >> 1;
+
+
+
+    }
+
+    
+
+
 }
+
+
+
+
+
 
 struct Timer {
     val: u8,
