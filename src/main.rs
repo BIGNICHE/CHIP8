@@ -22,66 +22,79 @@ struct Display {
 }
 
 struct RegisterOperator<'a> {
-    vx: &'a mut u8,
-    vy: &'a mut u8,
-    vf: &'a mut u8,
+    VX: &'a mut [u8],
 }   
 
 impl RegisterOperator<'_> {
-    fn bit_or(&mut self) {
-        (*self.vx) | (*self.vy);
+
+    fn ld(&mut self, x_idx: usize, y_idx: usize) {
+        self.VX[x_idx] = self.VX[y_idx];
     }
-    fn bit_and(&mut self) {
-        (*self.vx) & (*self.vy);
+
+    fn bit_or(&mut self, x_idx: usize, y_idx: usize) {
+        self.VX[x_idx] | self.VX[y_idx];
     }
-    fn bit_xor(&mut self) {
-        (*self.vx) ^ (*self.vy);
+    fn bit_and(&mut self, x_idx: usize, y_idx: usize) {
+        self.VX[x_idx] & self.VX[y_idx];
     }
-    fn add(&mut self) {
+    fn bit_xor(&mut self, x_idx: usize, y_idx: usize) {
+        (self.VX[x_idx]) ^ self.VX[y_idx];
+    }
+    fn add(&mut self, x_idx: usize, y_idx: usize) {
         // VF is carry.
         // If the result is greater than 8 bits, VF is set to 1.
         // only the lowest 8 bits are kept.
-        let tmp: u16 = ((*self.vx) + (*self.vy)) as u16;
+        let tmp: u16 = ((self.VX[x_idx]) + self.VX[y_idx]) as u16;
         if tmp > 0xFF {
-            *self.vf = 1;
+            self.VX[0xF] = 1;
         } else {
-            *self.vf = 0;
+            self.VX[0xF] = 0;
         }
-        (*self.vx) = (tmp & 0xFF) as u8;
+        (self.VX[x_idx]) = (tmp & 0xFF) as u8;
     }
 
-    fn sub(&mut self) {
-        if self.vx > self.vy {
-            *self.vf = 1;
+    fn sub(&mut self, x_idx: usize, y_idx: usize) {
+
+        // Set VF as a carry indicator
+
+        if self.VX[x_idx] > self.VX[y_idx] {
+            self.VX[0xF] = 1;
         } else {
-            *self.vf = 0;
+            self.VX[0xF] = 0;
         }
 
         // Unsigned sub, so result wraps.
-        *self.vx = *self.vx - *self.vy;
+        self.VX[x_idx] = self.VX[x_idx] - self.VX[y_idx];
         
     }
 
-    fn subn(&mut self) {
-        if self.vx > self.vy {
-            *self.vf = 0;
+    fn subn(&mut self, x_idx: usize, y_idx: usize) {
+        if self.VX[x_idx] > self.VX[y_idx] {
+            self.VX[0xF as usize] = 0;
         } else {
-            *self.vf = 1;
+            self.VX[0xF as usize] = 1;
         }
         // Unsigned sub, so result wraps.
-        *self.vx = *self.vx - *self.vy;
+        self.VX[x_idx] = self.VX[x_idx] - self.VX[y_idx];
 
     }
 
     // shift right
-    fn shr(&mut self) {
+    fn shr(&mut self, x_idx: usize, y_idx: usize) {
 
-        *self.vf = *self.vx & 1;
+        self.VX[0xF as usize] = self.VX[x_idx] & 1;
 
-        *self.vx >> 1;
+        self.VX[x_idx] >> 1;
 
 
 
+    }
+
+    fn shl(&mut self, x_idx: usize, y_idx: usize) {
+        // VF is set to the MSB of VX
+        self.VX[0xF as usize] = (self.VX[x_idx] & 0x80) >> 7;
+
+        self.VX[x_idx] << 1;
     }
 
     
@@ -429,32 +442,6 @@ impl Chip8 {
 
     }
 
-    // 8xy0
-    // Set Vx = Vy.
-    //Stores the value of register Vy in register Vx.
-    fn ld_y(&mut self, vx_index: usize, vy_index: usize) {
-
-        self.cpu.VX[vx_index] = self.cpu.VX[vy_index]; 
-
-    }
-
-    fn register_operation(&mut self, f: fn(u8, u8) -> u8, vx_index: usize, vy_index: usize) {
-
-        self.cpu.VX[vx_index] = f(self.cpu.VX[vx_index], self.cpu.VX[vy_index]);
-
-    }
-
-
-
-    // 8xy1
-    // Stores the bitwise OR of vx and vy in vx.
-    fn or_x_y(&mut self, vx_index: usize, vy_index: usize) {
-
-        //self.cpu.VX[vx_index] = self.cpu.VX[vx_index] | self.cpu.VX[vy_index]; 
-        
-        self.register_operation(std::ops::BitOr, vx_index, vy_index)
-
-    }
     /*
 
     // 8xy2
@@ -482,12 +469,18 @@ impl Chip8 {
         let vx_index = get_nibble(instruction, &1) as usize;
         let vy_index = get_nibble(instruction, &2) as usize;
 
-        match get_nibble(instruction, &3) {
-            0x0 => self.ld_y(vx_index, vy_index),
-            0x1 => self.or_x_y(vx_index, vy_index),
-            0x2 => self.and_x_y(vx_index, vy_index),
-            0x3 => self.xor_x_y(vx_index, vy_index),
+        let mut op = RegisterOperator{ VX: &mut self.cpu.VX };
 
+        match get_nibble(instruction, &3) {
+            0x0 => op.ld(vx_index, vy_index),
+            0x1 => op.bit_or(vx_index, vy_index),
+            0x2 => op.bit_and(vx_index, vy_index),
+            0x3 => op.bit_xor(vx_index, vy_index),
+            0x4 => op.add(vx_index, vy_index),
+            0x5 => op.sub(vx_index, vy_index),
+            0x6 => op.shr(vx_index, vy_index),
+            0x7 => op.subn(vx_index, vy_index),
+            0xE => op.shl(vx_index, vy_index),
             _ => println!("Instruction not recognized!")
         }
     }
